@@ -1,0 +1,7 @@
+base jplayer
+author Szymon Olewniczak
+email (my first name) [at] imz [dot] re
+date 2017-02-16
+name jplayer
+desc Embead jplayer in your dokuwiki pages.
+url http://www.dokuwiki.org/plugin:jplayer
