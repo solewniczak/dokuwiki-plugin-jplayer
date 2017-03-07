@@ -38,6 +38,26 @@ class syntax_plugin_jplayer extends DokuWiki_Syntax_Plugin {
         $this->Lexer->addSpecialPattern('\{\{jPlayerPlaylist>[^}]*\}\}',$mode,'plugin_jplayer');
     }
     
+    private function _audio($item) {
+        $pathinfo = pathinfo($item['file']);
+        $link = ml($item['id'],'',true);
+
+        $audio = array('title' => $pathinfo['filename']);
+
+        if ($pathinfo['extension'] === 'mp3') {
+            $audio['mp3'] = $link;
+        }
+        if ($pathinfo['extension'] === 'ogg') {
+            $audio['oga'] = $link;
+        }
+        
+        //https://stackoverflow.com/questions/9066878/jquery-jplayer-enable-download-for-client
+        $audio['free'] = true;
+        
+        return $audio;
+    }
+    
+    
     /**
      * Handle the match
      */
@@ -46,34 +66,34 @@ class syntax_plugin_jplayer extends DokuWiki_Syntax_Plugin {
         global $ID;
         $match = substr($match, strlen('{{jPlayerPlaylist>'), -2); //strip markup from start and end
         $data = array();
+        $data['audio'] = array();
         // extract params
-        list($ns,$params) = explode(' ',$match,2);
-        $ns = trim($ns);
-        // namespace (including resolving relatives)
-        $ns = resolve_id(getNS($ID),$ns);
-        $auth = auth_quickaclcheck("$ns:*");
-        if ($auth < AUTH_READ) {
-            // FIXME: print permission warning here instead?
-        } else {
-            $dir = utf8_encodeFN(str_replace(':','/',$ns));
-            $sort = 'natural';
-            search($data, $conf['mediadir'], 'search_media', 
-                   array('showmsg' => false, 'depth' => 1), $dir, 1, $sort);
+        $files_and_namespaces = preg_split('/\s+/', $match);
+            
+        foreach ($files_and_namespaces as $file) {
+            // namespace (including resolving relatives)
+            resolve_mediaid(getNS($ID), $file, $exists);
+            //$auth = auth_quickaclcheck("$ns:*");
+            $auth = auth_quickaclcheck($file);
+            if ($auth < AUTH_READ) {
+                // FIXME: print permission warning here instead?
+            } else {
+                $dir = utf8_encodeFN(str_replace(':','/',$file));
+                $full_path = $conf['mediadir'] . '/' . $dir;
+                if (is_dir($full_path)) {
+                    $sort = 'natural';
+                    search($files, $conf['mediadir'], 'search_media', 
+                           array('showmsg' => false, 'depth' => 1), $dir, 1, $sort);
 
-            $data['audio'] = array();
-            foreach ($data as $item) {
-                $pathinfo = pathinfo($item['file']);
-                $link = ml($item['id'],'',true);
-                
-                $audio = array('title' => $pathinfo['filename']);
-                
-                if ($pathinfo['extension'] === 'mp3') {
-                    $audio['mp3'] = $link;
+                    foreach ($files as $item) {
+                        $data['audio'][] = $this->_audio($item);
+                    }
+                } else {
+                    $data['audio'][] = $this->_audio(array(
+                        'file' => $full_path,
+                        'id' => $file
+                    ));
                 }
-                if ($pathinfo['extension'] === 'ogg') {
-                    $audio['oga'] = $link;
-                }
-                $data['audio'][] = $audio;
             }
         }
     
