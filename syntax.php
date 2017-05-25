@@ -2,7 +2,6 @@
 /**
  * Embed a jPlayer
  *
- * @license    GPL 2 (http://www.gnu.org/licenses/gpl.html)
  * @author     Szymon Olewniczak <(my first name) [at] imz [dot] re>
  */
 
