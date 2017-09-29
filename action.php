@@ -1,6 +1,6 @@
 <?php
 /**
- * @author         Szymon Olewniczak <(my first name) [at] imz [dot] re>
+ * @author         Szymon Olewniczak <solewniczak@rid.pl>
  */
 
 // must be run within Dokuwiki
@@ -13,18 +13,18 @@ class action_plugin_jplayer extends DokuWiki_Action_Plugin {
      */
     public function register(Doku_Event_Handler $controller) {
         $controller->register_hook('TPL_METAHEADER_OUTPUT', 'BEFORE', $this, 'include_dependencies', array());
-        
+
     }
     public function include_dependencies(Doku_Event $event) {
         $skin = $this->getConf('skin');
-        // Adding a stylesheet 
+        // Adding a stylesheet
         $event->data['link'][] = array (
             'type' => 'text/css',
-            'rel' => 'stylesheet', 
+            'rel' => 'stylesheet',
             'href' => DOKU_BASE .
             'lib/plugins/jplayer/jPlayer-2.9.2/dist/skin/'.$skin.'/css/jplayer.'.$skin.'.min.css',
         );
-        
+
         // Adding a JavaScript File
         $event->data['script'][] = array (
             'type' => 'text/javascript',
@@ -32,7 +32,7 @@ class action_plugin_jplayer extends DokuWiki_Action_Plugin {
             'lib/plugins/jplayer/jPlayer-2.9.2/dist/jplayer/jquery.jplayer.min.js',
             '_data' => '',
         );
-            
+
         $event->data['script'][] = array (
             'type' => 'text/javascript',
             'src' => DOKU_BASE .

@@ -2,7 +2,7 @@
 /**
  * Embed a jPlayer
  *
- * @author     Szymon Olewniczak <(my first name) [at] imz [dot] re>
+ * @author     Szymon Olewniczak <solewniczak@rid.pl>
  */
 
 // must be run within Dokuwiki
@@ -36,7 +36,7 @@ class syntax_plugin_jplayer extends DokuWiki_Syntax_Plugin {
     function connectTo($mode) {
         $this->Lexer->addSpecialPattern('\{\{jPlayerPlaylist>[^}]*\}\}',$mode,'plugin_jplayer');
     }
-    
+
     private function _audio($item) {
         $pathinfo = pathinfo($item['file']);
         $link = ml($item['id'],'',true);
@@ -49,14 +49,14 @@ class syntax_plugin_jplayer extends DokuWiki_Syntax_Plugin {
         if ($pathinfo['extension'] === 'ogg') {
             $audio['oga'] = $link;
         }
-        
+
         //https://stackoverflow.com/questions/9066878/jquery-jplayer-enable-download-for-client
         $audio['free'] = true;
-        
+
         return $audio;
     }
-    
-    
+
+
     /**
      * Handle the match
      */
@@ -68,37 +68,44 @@ class syntax_plugin_jplayer extends DokuWiki_Syntax_Plugin {
         $data['audio'] = array();
         // extract params
         $files_and_namespaces = preg_split('/\s+/', $match);
-            
+        //remove empty
+        $files_and_namespaces = array_filter($files_and_namespaces);
+
         foreach ($files_and_namespaces as $file) {
             // namespace (including resolving relatives)
             resolve_mediaid(getNS($ID), $file, $exists);
-            //$auth = auth_quickaclcheck("$ns:*");
+            if (!$exists) {
+                msg("jPlayerPlaylist: file \"$file\" doesn't exist", -1);
+                continue;
+            }
+
             $auth = auth_quickaclcheck($file);
             if ($auth < AUTH_READ) {
-                // FIXME: print permission warning here instead?
-            } else {
-                $dir = utf8_encodeFN(str_replace(':','/',$file));
-                $full_path = $conf['mediadir'] . '/' . $dir;
-                if (is_dir($full_path)) {
-                    $sort = 'natural';
-                    search($files, $conf['mediadir'], 'search_media', 
-                           array('showmsg' => false, 'depth' => 1), $dir, 1, $sort);
+                msg("jPlayerPlaylist: no read permission to \"$file\"", -1);
+                continue;
+            }
 
-                    foreach ($files as $item) {
-                        $data['audio'][] = $this->_audio($item);
-                    }
-                } else {
-                    $data['audio'][] = $this->_audio(array(
-                        'file' => $full_path,
-                        'id' => $file
-                    ));
+            $dir = utf8_encodeFN(str_replace(':','/',$file));
+            $full_path = $conf['mediadir'] . '/' . $dir;
+            if (is_dir($full_path)) {
+                $sort = 'natural';
+                search($files, $conf['mediadir'], 'search_media',
+                       array('showmsg' => false, 'depth' => 1), $dir, 1, $sort);
+
+                foreach ($files as $item) {
+                    $data['audio'][] = $this->_audio($item);
                 }
+            } else {
+                $data['audio'][] = $this->_audio(array(
+                    'file' => $full_path,
+                    'id' => $file
+                ));
             }
         }
-    
+
         return $data;
     }
-    
+
     private function _script_on_document_ready($script) {
         $output = '<script type="text/javascript">'."\n";
         $output .= "/*<![CDATA[*/\n";
@@ -115,15 +122,15 @@ class syntax_plugin_jplayer extends DokuWiki_Syntax_Plugin {
     function render($mode, Doku_Renderer $R, $data) {
         static $instance = 0;
         if ($mode != 'xhtml') return false;
-        
+
         $instance += 1;
         $ids = array(
             'JPLAYER' => 'jquery_jplayer_'.$instance,
             'WRAPPER' => 'jp_container_'.$instance
         );
-        
+
         $skin = $this->getConf('skin');
-        
+
         $tpl_path = DOKU_PLUGIN .
                 'jplayer/jPlayer-2.9.2/dist/skin/'.$skin.'/mustache/';
         // use .html instead of .mustache for default template extension
@@ -133,7 +140,7 @@ class syntax_plugin_jplayer extends DokuWiki_Syntax_Plugin {
         ));
         $tpl = $mustache->loadTemplate('jplayer.'.$skin.'.audio.playlist');
         $R->doc .= $tpl->render($ids);
-                
+
         $json = new JSON();
         $selectors = $json->encode(array(
             'jPlayer' => '#'.$ids['JPLAYER'],
@@ -149,10 +156,10 @@ class syntax_plugin_jplayer extends DokuWiki_Syntax_Plugin {
 		    'smoothPlayBar' => true,
 		    'keyEnabled' => true
         ));
-        
+
         $R->doc .= $this->_script_on_document_ready(
             'new jPlayerPlaylist('.$selectors.', '.$audio.', '.$options.');');
-        
+
         return true;
     }
 }
