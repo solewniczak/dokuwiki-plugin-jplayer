@@ -13,31 +13,40 @@ class action_plugin_jplayer extends DokuWiki_Action_Plugin {
      */
     public function register(Doku_Event_Handler $controller) {
         $controller->register_hook('TPL_METAHEADER_OUTPUT', 'BEFORE', $this, 'include_dependencies', array());
-
+        $controller->register_hook('DOKUWIKI_STARTED', 'AFTER',  $this, 'jsinfo');
     }
-    public function include_dependencies(Doku_Event $event) {
+    public function include_dependencies(Doku_Event $event, $param) {
         $skin = $this->getConf('skin');
         // Adding a stylesheet
         $event->data['link'][] = array (
             'type' => 'text/css',
             'rel' => 'stylesheet',
             'href' => DOKU_BASE .
-            'lib/plugins/jplayer/jPlayer-2.9.2/dist/skin/'.$skin.'/css/jplayer.'.$skin.'.min.css',
+            'lib/plugins/jplayer/vendor/happyworm/jplayer/dist/skin/'.$skin.'/css/jplayer.'.$skin.'.min.css',
         );
 
         // Adding a JavaScript File
         $event->data['script'][] = array (
             'type' => 'text/javascript',
             'src' => DOKU_BASE .
-            'lib/plugins/jplayer/jPlayer-2.9.2/dist/jplayer/jquery.jplayer.min.js',
+            'lib/plugins/jplayer/vendor/happyworm/jplayer/dist/jplayer/jquery.jplayer.min.js',
             '_data' => '',
         );
 
         $event->data['script'][] = array (
             'type' => 'text/javascript',
             'src' => DOKU_BASE .
-            'lib/plugins/jplayer/jPlayer-2.9.2/dist/add-on/jplayer.playlist.min.js',
+            'lib/plugins/jplayer/vendor/happyworm/jplayer/dist/add-on/jplayer.playlist.min.js',
             '_data' => '',
         );
+    }
+
+    public function jsinfo(Doku_Event $event, $param) {
+        global $JSINFO, $ID;
+
+        if (!isset($JSINFO['plugin'])) $JSINFO['plugin'] = array();
+
+        $name = $this->getPluginName();
+        $JSINFO['plugin'][$name] = p_get_metadata($ID, "plugin $name");
     }
 }

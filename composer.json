@@ -1,0 +1,9 @@
+{
+  "require":
+  {
+    "php": ">=5.3.0",
+    "james-heinrich/getid3": "1.9.*",
+    "happyworm/jplayer": "2.*",
+    "mustache/mustache": "2.*"
+  }
+}
