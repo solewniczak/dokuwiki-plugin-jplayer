@@ -53,9 +53,10 @@ class syntax_plugin_jplayer extends DokuWiki_Syntax_Plugin {
         if ($pathinfo['extension'] === 'mp3') {
             $audio['mp3'] = $link;
             $analyze = $this->getID3->analyze($full_path);
-            $tags = array_shift($analyze['tags']);
-            if ($tags != null && isset($tags['title']) && $tags['title'] != '') {
-                $audio['title'] = $tags['title'];
+            if (isset($analyze['tags']['id3v2']['title'])) {
+                $audio['title'] = $analyze['tags']['id3v2']['title'];
+            } elseif(isset($analyze['tags']['id3v1']['title'])) {
+                $audio['title'] = $analyze['tags']['id3v1']['title'];
             }
         }
         if ($pathinfo['extension'] === 'ogg') {
