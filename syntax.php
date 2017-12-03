@@ -49,14 +49,15 @@ class syntax_plugin_jplayer extends DokuWiki_Syntax_Plugin {
         $link = ml($item['id'],'',true);
 
         $audio = array('title' => $pathinfo['filename']);
-
         if ($pathinfo['extension'] === 'mp3') {
             $audio['mp3'] = $link;
-            $analyze = $this->getID3->analyze($full_path);
-            if (isset($analyze['tags']['id3v2']['title'])) {
-                $audio['title'] = $analyze['tags']['id3v2']['title'];
-            } elseif(isset($analyze['tags']['id3v1']['title'])) {
-                $audio['title'] = $analyze['tags']['id3v1']['title'];
+            if ($this->getConf('use_id3_tags') == '1') {
+                $analyze = $this->getID3->analyze($full_path);
+                if(isset($analyze['tags']['id3v2']['title'])) {
+                    $audio['title'] = $analyze['tags']['id3v2']['title'];
+                } elseif(isset($analyze['tags']['id3v1']['title'])) {
+                    $audio['title'] = $analyze['tags']['id3v1']['title'];
+                }
             }
         }
         if ($pathinfo['extension'] === 'ogg') {
@@ -105,8 +106,13 @@ class syntax_plugin_jplayer extends DokuWiki_Syntax_Plugin {
                 search($files, $conf['mediadir'], 'search_media',
                        array('showmsg' => false, 'depth' => 1), $dir, 1, $sort);
 
-                foreach ($files as $item) {
+                $max = (int) $this->getConf('max_audio_files_per_player');
+                if (is_array($files)) foreach ($files as $item) {
+                    if ($max == 0) {
+                        break;
+                    }
                     $data['audio'][] = $this->_audio($item);
+                    $max -= 1;
                 }
             } else {
                 $data['audio'][] = $this->_audio(array(
