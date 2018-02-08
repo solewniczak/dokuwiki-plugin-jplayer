@@ -3,5 +3,5 @@ author Szymon Olewniczak
 email solewniczak@rid.pl
 date 2017-12-03
 name jplayer
-desc Embead jplayer in your dokuwiki pages.
+desc Embed jplayer in your dokuwiki pages.
 url http://www.dokuwiki.org/plugin:jplayer
