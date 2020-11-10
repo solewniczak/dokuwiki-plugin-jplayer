@@ -1,38 +1,40 @@
 <?php
 /////////////////////////////////////////////////////////////////
 /// getID3() by James Heinrich <info@getid3.org>               //
-//  available at http://getid3.sourceforge.net                 //
-//            or http://www.getid3.org                         //
-//          also https://github.com/JamesHeinrich/getID3       //
-/////////////////////////////////////////////////////////////////
+//  available at https://github.com/JamesHeinrich/getID3       //
+//            or https://www.getid3.org                        //
+//            or http://getid3.sourceforge.net                 //
 //                                                             //
-// /demo/demo.browse.php - part of getID3()                     //
+// /demo/demo.browse.php - part of getID3()                    //
 // Sample script for browsing/scanning files and displaying    //
 // information returned by getID3()                            //
-// See readme.txt for more details                             //
+//  see readme.txt for more details                            //
 //                                                            ///
 /////////////////////////////////////////////////////////////////
 
 die('For security reasons, this demo has been disabled. It can be enabled by removing line '.__LINE__.' in demos/'.basename(__FILE__));
-define('GETID3_DEMO_BROWSE_ALLOW_EDIT_LINK',   false);
-define('GETID3_DEMO_BROWSE_ALLOW_DELETE_LINK', false);
-define('GETID3_DEMO_BROWSE_ALLOW_MD5_LINK',    false);
+
+define('GETID3_DEMO_BROWSE_ALLOW_EDIT_LINK',   false); // if enabled, shows "edit" links (to /demos/demo.write.php) to allow ID3/APE/etc tag editing on applicable file types
+define('GETID3_DEMO_BROWSE_ALLOW_DELETE_LINK', false); // if enabled, shows "delete" links to delete files from the browse interface
+define('GETID3_DEMO_BROWSE_ALLOW_MD5_LINK',    false); // if enabled, shows "enable" link for MD5 hashes for file/data/source
 
 /////////////////////////////////////////////////////////////////
 // die if magic_quotes_runtime or magic_quotes_gpc are set
-if (function_exists('get_magic_quotes_runtime') && get_magic_quotes_runtime()) {
-	die('magic_quotes_runtime is enabled, getID3 will not run.');
-}
-if (function_exists('get_magic_quotes_gpc') && get_magic_quotes_gpc()) {
-	die('magic_quotes_gpc is enabled, getID3 will not run.');
+if (version_compare(PHP_VERSION, '7.4.0', '<')) { // get_magic_quotes_runtime / get_magic_quotes_gpc functions give deprecation warnings in PHP v7.4
+	if (function_exists('get_magic_quotes_runtime') && get_magic_quotes_runtime()) {
+		die('magic_quotes_runtime is enabled, getID3 will not run.');
+	}
+	if (function_exists('get_magic_quotes_gpc') && get_magic_quotes_gpc()) {
+		die('magic_quotes_gpc is enabled, getID3 will not run.');
+	}
 }
 /////////////////////////////////////////////////////////////////
 
-$PageEncoding = 'UTF-8';
-
-$writescriptfilename = 'demo.write.php';
-
 require_once('../getid3/getid3.php');
+
+$PageEncoding       = 'UTF-8';
+$FileSystemEncoding = ((GETID3_OS_ISWINDOWS && version_compare(PHP_VERSION, '7.1.0', '<')) ? 'Windows-1252' : 'UTF-8');
+$writescriptfilename = 'demo.write.php';
 
 // Needed for windows only. Leave commented-out to auto-detect, only define here if auto-detection does not work properly
 //define('GETID3_HELPERAPPSDIR', 'C:\\helperapps\\');
@@ -61,20 +63,20 @@ echo '<link rel="stylesheet" href="getid3.css" type="text/css">';
 echo '<meta http-equiv="Content-Type" content="text/html;charset='.$PageEncoding.'" />';
 echo '</head><body>';
 
-if (isset($_REQUEST['deletefile'])) {
+if (isset($_REQUEST['deletefile']) && GETID3_DEMO_BROWSE_ALLOW_DELETE_LINK) {
 	if (file_exists($_REQUEST['deletefile'])) {
 		if (unlink($_REQUEST['deletefile'])) {
-			$deletefilemessage = 'Successfully deleted '.addslashes($_REQUEST['deletefile']);
+			$deletefilemessage = 'Successfully deleted '.$_REQUEST['deletefile'];
 		} else {
-			$deletefilemessage = 'FAILED to delete '.addslashes($_REQUEST['deletefile']).' - error deleting file';
+			$deletefilemessage = 'FAILED to delete '.$_REQUEST['deletefile'].' - error deleting file';
 		}
 	} else {
-		$deletefilemessage = 'FAILED to delete '.addslashes($_REQUEST['deletefile']).' - file does not exist';
+		$deletefilemessage = 'FAILED to delete '.$_REQUEST['deletefile'].' - file does not exist';
 	}
 	if (isset($_REQUEST['noalert'])) {
-		echo '<b><font color="'.(($deletefilemessage{0} == 'F') ? '#FF0000' : '#008000').'">'.$deletefilemessage.'</font></b><hr>';
+		echo '<span style="font-weight: bold; color: #'.(($deletefilemessage[0] == 'F') ? 'FF0000' : '008000').';">'.htmlentities($deletefilemessage, ENT_QUOTES).'</span><hr>';
 	} else {
-		echo '<script type="text/javascript">alert("'.$deletefilemessage.'");</script>';
+		echo '<script type="text/javascript">alert("'.addslashes($deletefilemessage).'");</script>';
 	}
 }
 
@@ -82,7 +84,7 @@ if (isset($_REQUEST['deletefile'])) {
 if (isset($_REQUEST['filename'])) {
 
 	if (!file_exists($_REQUEST['filename']) || !is_file($_REQUEST['filename'])) {
-		die(getid3_lib::iconv_fallback('ISO-8859-1', $PageEncoding, $_REQUEST['filename'].' does not exist'));
+		die(getid3_lib::iconv_fallback($FileSystemEncoding, $PageEncoding, $_REQUEST['filename'].' does not exist'));
 	}
 	$starttime = microtime(true);
 
@@ -99,7 +101,7 @@ if (isset($_REQUEST['filename'])) {
 	}
 
 
-	getid3_lib::CopyTagsToComments($ThisFileInfo);
+	$getID3->CopyTagsToComments($ThisFileInfo);
 
 	$listdirectory = dirname($_REQUEST['filename']);
 	$listdirectory = realpath($listdirectory); // get rid of /../../ references
@@ -110,10 +112,10 @@ if (isset($_REQUEST['filename'])) {
 		$listdirectory = str_replace(DIRECTORY_SEPARATOR, '/', $listdirectory.'/');
 	}
 
-	if (strstr($_REQUEST['filename'], 'http://') || strstr($_REQUEST['filename'], 'ftp://')) {
+	if (preg_match('#^(ht|f)tp://#', $_REQUEST['filename'])) {
 		echo '<i>Cannot browse remote filesystems</i><br>';
 	} else {
-		echo 'Browse: <a href="'.htmlentities($_SERVER['PHP_SELF'].'?listdirectory='.urlencode($listdirectory), ENT_QUOTES | ENT_SUBSTITUTE, $PageEncoding).'">'.getid3_lib::iconv_fallback('ISO-8859-1', $PageEncoding, $listdirectory).'</a><br>';
+		echo 'Browse: <a href="'.htmlentities($_SERVER['PHP_SELF'].'?listdirectory='.urlencode($listdirectory), ENT_QUOTES | ENT_SUBSTITUTE, $PageEncoding).'">'.getid3_lib::iconv_fallback($FileSystemEncoding, $PageEncoding, $listdirectory).'</a><br>';
 	}
 
 	getid3_lib::ksort_recursive($ThisFileInfo);
@@ -124,14 +126,8 @@ if (isset($_REQUEST['filename'])) {
 } else {
 
 	$listdirectory = (isset($_REQUEST['listdirectory']) ? $_REQUEST['listdirectory'] : '.');
-	$listdirectory = realpath($listdirectory); // get rid of /../../ references
-	$currentfulldir = $listdirectory.'/';
-
-	if (GETID3_OS_ISWINDOWS) {
-		// this mostly just gives a consistant look to Windows and *nix filesystems
-		// (windows uses \ as directory seperator, *nix uses /)
-		$currentfulldir = str_replace(DIRECTORY_SEPARATOR, '/', $listdirectory.'/');
-	}
+	$listdirectory = getid3_lib::truepath($listdirectory); // get rid of /../../ references
+	$currentfulldir = str_replace(DIRECTORY_SEPARATOR, '/', $listdirectory).'/'; // this mostly just gives a consistant look to Windows and *nix filesystems: (Windows uses \ as directory seperator, *nix uses /)
 
 	ob_start();
 	if ($handle = opendir($listdirectory)) {
@@ -155,7 +151,7 @@ if (isset($_REQUEST['filename'])) {
 		while ($file = readdir($handle)) {
 			$currentfilename = $listdirectory.'/'.$file;
 			set_time_limit(30); // allocate another 30 seconds to process this file - should go much quicker than this unless intense processing (like bitrate histogram analysis) is enabled
-			echo ' .'; // progress indicator dot
+			echo ' <span title="'.htmlentities($file, ENT_QUOTES).'">.</span>'; // progress indicator dot
 			flush();  // make sure the dot is shown, otherwise it's useless
 			switch ($file) {
 				case '..':
@@ -185,7 +181,7 @@ if (isset($_REQUEST['filename'])) {
 				$getID3->setOption(array('option_md5_data' => (isset($_REQUEST['ShowMD5']) && GETID3_DEMO_BROWSE_ALLOW_MD5_LINK)));
 				$fileinformation = $getID3->analyze($currentfilename);
 
-				getid3_lib::CopyTagsToComments($fileinformation);
+				$getID3->CopyTagsToComments($fileinformation);
 
 				$TotalScannedFilesize += (isset($fileinformation['filesize']) ? $fileinformation['filesize'] : 0);
 
@@ -209,6 +205,11 @@ if (isset($_REQUEST['filename'])) {
 				if (isset($fileinformation['bitrate']) && ($fileinformation['bitrate'] > 0)) {
 					$TotalScannedBitrateFiles++;
 				}
+
+			} else {
+
+				echo '<div style="color: red;">Unknown filesystem entry: "'.htmlentities($currentfilename, ENT_QUOTES | ENT_SUBSTITUTE, $PageEncoding).'"</div>';
+
 			}
 		}
 		$endtime = microtime(true);
@@ -220,7 +221,7 @@ if (isset($_REQUEST['filename'])) {
 		$columnsintable = 14;
 		echo '<table class="table" cellspacing="0" cellpadding="3">';
 
-		echo '<tr bgcolor="#'.$getID3checkColor_Head.'"><th colspan="'.$columnsintable.'">Files in '.getid3_lib::iconv_fallback('ISO-8859-1', $PageEncoding, $currentfulldir).'</th></tr>';
+		echo '<tr bgcolor="#'.$getID3checkColor_Head.'"><th colspan="'.$columnsintable.'">Files in '.getid3_lib::iconv_fallback($FileSystemEncoding, $PageEncoding, $currentfulldir).'</th></tr>';
 		$rowcounter = 0;
 		foreach ($DirectoryContents as $dirname => $val) {
 			if (isset($DirectoryContents[$dirname]['dir']) && is_array($DirectoryContents[$dirname]['dir'])) {
@@ -240,7 +241,7 @@ if (isset($_REQUEST['filename'])) {
 						echo '"> <input type="submit" value="Go">';
 						echo '</form></td>';
 					} else {
-						$escaped_filename = htmlentities($filename, ENT_SUBSTITUTE, $PageEncoding); // do filesystems always return filenames in ISO-8859-1?
+						$escaped_filename = htmlentities($filename, ENT_SUBSTITUTE, $FileSystemEncoding); // do filesystems always return filenames in ISO-8859-1?
 						$escaped_filename = ($escaped_filename ? $escaped_filename : rawurlencode($filename));
 						echo '<td colspan="'.$columnsintable.'"><a href="'.htmlentities($_SERVER['PHP_SELF'].'?listdirectory='.urlencode($dirname.$filename), ENT_QUOTES | ENT_SUBSTITUTE, $PageEncoding).'"><b>'.$escaped_filename.'</b></a></td>';
 					}
@@ -273,7 +274,7 @@ if (isset($_REQUEST['filename'])) {
 				uksort($DirectoryContents[$dirname]['known'], 'MoreNaturalSort');
 				foreach ($DirectoryContents[$dirname]['known'] as $filename => $fileinfo) {
 					echo '<tr bgcolor="#'.(($rowcounter++ % 2) ? $getID3checkColor_FileDark : $getID3checkColor_FileLight).'">';
-					$escaped_filename = htmlentities($filename, ENT_SUBSTITUTE, $PageEncoding);
+					$escaped_filename = htmlentities($filename, ENT_SUBSTITUTE, $FileSystemEncoding); // do filesystems always return filenames in ISO-8859-1?
 					$escaped_filename = ($escaped_filename ? $escaped_filename : rawurlencode($filename));
 					echo '<td><a href="'.htmlentities($_SERVER['PHP_SELF'].'?filename='.urlencode($dirname.$filename), ENT_QUOTES | ENT_SUBSTITUTE, $PageEncoding).'" title="View detailed analysis">'.$escaped_filename.'</a></td>';
 					echo '<td align="right">&nbsp;'.number_format($fileinfo['filesize']).'</td>';
@@ -391,7 +392,8 @@ if (isset($_REQUEST['filename'])) {
 	} else {
 		$errormessage = ob_get_contents();
 		ob_end_clean();
-		echo '<b>ERROR: Could not open directory: <u>'.$currentfulldir.'</u></b><br>';
+		echo '<b>ERROR: Could not open directory: <u>'.htmlentities($currentfulldir, ENT_QUOTES | ENT_SUBSTITUTE, $PageEncoding).'</u></b><br>';
+		//echo $errormessage.'<br>'; // uncomment for debugging
 	}
 }
 echo PoweredBygetID3().'<br clear="all">';
@@ -459,7 +461,9 @@ function string_var_dump($variable) {
 	return $dumpedvariable;
 }
 
-function table_var_dump($variable, $wrap_in_td=false, $encoding='ISO-8859-1') {
+function table_var_dump($variable, $wrap_in_td=false, $encoding='') {
+	global $FileSystemEncoding;
+	$encoding = ($encoding ? $encoding : $FileSystemEncoding);
 	$returnstring = '';
 	switch (gettype($variable)) {
 		case 'array':
@@ -517,7 +521,7 @@ function table_var_dump($variable, $wrap_in_td=false, $encoding='ISO-8859-1') {
 			if (($imagechunkcheck = getid3_lib::GetDataImageSize($variable, $imageinfo)) && ($imagechunkcheck[2] >= 1) && ($imagechunkcheck[2] <= 3)) {
 				$returnstring .= ($wrap_in_td ? '<td>' : '');
 				$returnstring .= '<table class="dump" cellspacing="0" cellpadding="2">';
-				$returnstring .= '<tr><td><b>type</b></td><td>'.getid3_lib::ImageTypesLookup($imagechunkcheck[2]).'</td></tr>'."\n";
+				$returnstring .= '<tr><td><b>type</b></td><td>'.image_type_to_mime_type($imagechunkcheck[2]).'</td></tr>'."\n";
 				$returnstring .= '<tr><td><b>width</b></td><td>'.number_format($imagechunkcheck[0]).' px</td></tr>'."\n";
 				$returnstring .= '<tr><td><b>height</b></td><td>'.number_format($imagechunkcheck[1]).' px</td></tr>'."\n";
 				$returnstring .= '<tr><td><b>size</b></td><td>'.number_format(strlen($variable)).' bytes</td></tr></table>'."\n";
@@ -600,10 +604,15 @@ function MoreNaturalSort($ar1, $ar2) {
 	return 0;
 }
 
+/**
+ * @param string $string
+ *
+ * @return mixed
+ */
 function PoweredBygetID3($string='') {
 	global $getID3;
 	if (!$string) {
-		$string = '<div style="border: 1px #CCCCCC solid; padding: 5px; margin: 5px 0px; float: left; background-color: #EEEEEE; font-size: 8pt; font-face: sans-serif;">Powered by <a href="http://www.getid3.org/"><b>getID3() v<!--GETID3VER--></b><br>http://www.getid3.org/</a><br>Running on PHP v'.phpversion().' ('.(ceil(log(PHP_INT_MAX, 2)) + 1).'-bit)</div>';
+		$string = '<div style="border: 1px #CCCCCC solid; padding: 5px; margin: 5px 0; float: left; background-color: #EEEEEE; font-size: 8pt; font-family: sans-serif;">Powered by <a href="https://www.getid3.org/"><b>getID3() v<!--GETID3VER--></b><br>https://www.getid3.org/</a><br>Running on PHP v'.PHP_VERSION.' ('.(8 * PHP_INT_SIZE).'-bit, '.(defined('PHP_OS_FAMILY') ? PHP_OS_FAMILY : PHP_OS).')</div>';
 	}
 	return str_replace('<!--GETID3VER-->', $getID3->version(), $string);
 }

@@ -1,11 +1,11 @@
 <?php
+
 /////////////////////////////////////////////////////////////////
 /// getID3() by James Heinrich <info@getid3.org>               //
-//  available at http://getid3.sourceforge.net                 //
-//            or http://www.getid3.org                         //
-//          also https://github.com/JamesHeinrich/getID3       //
-/////////////////////////////////////////////////////////////////
-// See readme.txt for more details                             //
+//  available at https://github.com/JamesHeinrich/getID3       //
+//            or https://www.getid3.org                        //
+//            or http://getid3.sourceforge.net                 //
+//  see readme.txt for more details                            //
 /////////////////////////////////////////////////////////////////
 //                                                             //
 // module.audio.wavpack.php                                    //
@@ -14,10 +14,14 @@
 //                                                            ///
 /////////////////////////////////////////////////////////////////
 
-
+if (!defined('GETID3_INCLUDEPATH')) { // prevent path-exposing attacks that access modules directly on public webservers
+	exit;
+}
 class getid3_wavpack extends getid3_handler
 {
-
+	/**
+	 * @return bool
+	 */
 	public function Analyze() {
 		$info = &$this->getid3->info;
 
@@ -100,8 +104,8 @@ class getid3_wavpack extends getid3_handler
 					return false;
 				}
 
-				$info['wavpack']['blockheader']['minor_version'] = ord($wavpackheader{8});
-				$info['wavpack']['blockheader']['major_version'] = ord($wavpackheader{9});
+				$info['wavpack']['blockheader']['minor_version'] = ord($wavpackheader[8]);
+				$info['wavpack']['blockheader']['major_version'] = ord($wavpackheader[9]);
 
 				if (($info['wavpack']['blockheader']['major_version'] != 4) ||
 					(($info['wavpack']['blockheader']['minor_version'] < 4) &&
@@ -120,8 +124,8 @@ class getid3_wavpack extends getid3_handler
 						return false;
 				}
 
-				$info['wavpack']['blockheader']['track_number']  = ord($wavpackheader{10}); // unused
-				$info['wavpack']['blockheader']['index_number']  = ord($wavpackheader{11}); // unused
+				$info['wavpack']['blockheader']['track_number']  = ord($wavpackheader[10]); // unused
+				$info['wavpack']['blockheader']['index_number']  = ord($wavpackheader[11]); // unused
 				$info['wavpack']['blockheader']['total_samples'] = getid3_lib::LittleEndian2Int(substr($wavpackheader, 12,  4));
 				$info['wavpack']['blockheader']['block_index']   = getid3_lib::LittleEndian2Int(substr($wavpackheader, 16,  4));
 				$info['wavpack']['blockheader']['block_samples'] = getid3_lib::LittleEndian2Int(substr($wavpackheader, 20,  4));
@@ -151,7 +155,7 @@ class getid3_wavpack extends getid3_handler
 				if (feof($this->getid3->fp)) {
 					break;
 				}
-				$metablock['id'] = ord($metablockheader{0});
+				$metablock['id'] = ord($metablockheader[0]);
 				$metablock['function_id'] = ($metablock['id'] & 0x3F);
 				$metablock['function_name'] = $this->WavPackMetablockNameLookup($metablock['function_id']);
 
@@ -171,6 +175,7 @@ class getid3_wavpack extends getid3_handler
 				}
 				$metablock['size'] = getid3_lib::LittleEndian2Int(substr($metablockheader, 1)) * 2; // size is stored in words
 				$metablock['data'] = null;
+				$metablock['comments'] = array();
 
 				if ($metablock['size'] > 0) {
 
@@ -219,7 +224,7 @@ class getid3_wavpack extends getid3_handler
 							$original_wav_filesize = getid3_lib::LittleEndian2Int(substr($metablock['data'], 4, 4));
 
 							$getid3_temp = new getID3();
-							$getid3_temp->openfile($this->getid3->filename);
+							$getid3_temp->openfile($this->getid3->filename, $this->getid3->info['filesize'], $this->getid3->fp);
 							$getid3_riff = new getid3_riff($getid3_temp);
 							$getid3_riff->ParseRIFFdata($metablock['data']);
 							$metablock['riff']            = $getid3_temp->info['riff'];
@@ -236,12 +241,12 @@ class getid3_wavpack extends getid3_handler
 
 
 						case 0x22: // ID_RIFF_TRAILER
-							$metablockRIFFfooter = $metablockRIFFheader.$metablock['data'];
+							$metablockRIFFfooter = isset($metablockRIFFheader) ? $metablockRIFFheader : ''.$metablock['data'];
 							getid3_lib::IncludeDependency(GETID3_INCLUDEPATH.'module.audio-video.riff.php', __FILE__, true);
 
 							$startoffset = $metablock['offset'] + ($metablock['large_block'] ? 4 : 2);
 							$getid3_temp = new getID3();
-							$getid3_temp->openfile($this->getid3->filename);
+							$getid3_temp->openfile($this->getid3->filename, $this->getid3->info['filesize'], $this->getid3->fp);
 							$getid3_temp->info['avdataend']  = $info['avdataend'];
 							//$getid3_temp->info['fileformat'] = 'riff';
 							$getid3_riff = new getid3_riff($getid3_temp);
@@ -368,7 +373,11 @@ class getid3_wavpack extends getid3_handler
 		return true;
 	}
 
-
+	/**
+	 * @param int $id
+	 *
+	 * @return string
+	 */
 	public function WavPackMetablockNameLookup(&$id) {
 		static $WavPackMetablockNameLookup = array(
 			0x00 => 'Dummy',

@@ -30,6 +30,7 @@ class action_plugin_jplayer extends DokuWiki_Action_Plugin {
             'type' => 'text/javascript',
             'src' => DOKU_BASE .
             'lib/plugins/jplayer/vendor/happyworm/jplayer/dist/jplayer/jquery.jplayer.min.js',
+            'defer' => 'defer',
             '_data' => '',
         );
 
@@ -37,6 +38,7 @@ class action_plugin_jplayer extends DokuWiki_Action_Plugin {
             'type' => 'text/javascript',
             'src' => DOKU_BASE .
             'lib/plugins/jplayer/vendor/happyworm/jplayer/dist/add-on/jplayer.playlist.min.js',
+            'defer' => 'defer',
             '_data' => '',
         );
     }
